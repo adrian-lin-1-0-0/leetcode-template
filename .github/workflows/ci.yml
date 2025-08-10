@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+        sudo apt-get install -y libgtest-dev
+        
+        # Build and install GoogleTest
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp lib/*.a /usr/lib
+        sudo mkdir -p /usr/local/lib
+        sudo cp lib/*.a /usr/local/lib
+        
+    - name: Set compiler
+      run: |
+        if [ "${{ matrix.compiler }}" = "clang++" ]; then
+          sudo apt-get install -y clang
+        fi
+        echo "CXX=${{ matrix.compiler }}" >> $GITHUB_ENV
+        
+    - name: Build and test all solutions
+      run: |
+        # Find all test files and extract problem IDs
+        test_files=$(find tests -name "test_lc*.cpp" -type f)
+        
+        if [ -z "$test_files" ]; then
+          echo "No test files found"
+          exit 1
+        fi
+        
+        echo "Found test files:"
+        echo "$test_files"
+        
+        # Extract problem IDs and run tests
+        for test_file in $test_files; do
+          # Extract problem ID from filename (e.g., test_lc231.cpp -> 231)
+          problem_id=$(basename "$test_file" | sed 's/test_lc\([0-9]*\)\.cpp/\1/')
+          
+          echo "Running tests for problem $problem_id..."
+          
+          # Check if source file exists
+          if [ ! -f "src/lc${problem_id}.cpp" ]; then
+            echo "Warning: Source file src/lc${problem_id}.cpp not found, skipping..."
+            continue
+          fi
+          
+          # Build and run test
+          $CXX src/lc${problem_id}.cpp tests/test_lc${problem_id}.cpp -I./src -lgtest -lgtest_main -pthread -o run_tests_${problem_id}
+          
+          if [ $? -eq 0 ]; then
+            ./run_tests_${problem_id}
+            if [ $? -eq 0 ]; then
+              echo "✅ Tests passed for problem $problem_id"
+            else
+              echo "❌ Tests failed for problem $problem_id"
+              exit 1
+            fi
+          else
+            echo "❌ Build failed for problem $problem_id"
+            exit 1
+          fi
+          
+          # Clean up
+          rm -f run_tests_${problem_id}
+        done
+        
+        echo "🎉 All tests passed!"
+        
+    - name: Clean up
+      run: |
+        make clean || true
+        rm -f run_tests_*
