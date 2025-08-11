@@ -69,18 +69,10 @@ create_new_problem() {
     
     # Create source file template
     cat > "src/lc${id}.cpp" << EOF
-#include <vector>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-using namespace std;
 
 class Solution {
 public:
     // TODO: Implement your solution here
-    int solve(int n) {
-        return 0;
-    }
 };
 EOF
     
