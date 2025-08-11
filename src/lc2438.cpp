@@ -8,7 +8,7 @@ class Solution {
         constexpr int mod = 1e9+7;
         vector<int> powers;
         for (int i = 0, p2 = 1; i < 31; ++i, p2 <<= 1) {
-            if ((p2 & n) == p2) powers.push_back(p2);
+            if (p2 & n) powers.push_back(p2);
         }
         vector<int> res;
         for (const auto& query : queries) {
